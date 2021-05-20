@@ -107,7 +107,6 @@ export class QueryInfo {
     // or setVariables.
     networkStatus?: NetworkStatus,
     observableQuery?: ObservableQuery<any>;
-    lastRequestId?: number;
   }): this {
     let networkStatus = query.networkStatus || NetworkStatus.loading;
     if (this.variables &&
@@ -130,10 +129,6 @@ export class QueryInfo {
 
     if (query.observableQuery) {
       this.setObservableQuery(query.observableQuery);
-    }
-
-    if (query.lastRequestId) {
-      this.lastRequestId = query.lastRequestId;
     }
 
     return this;
@@ -357,10 +352,6 @@ export class QueryInfo {
     this.reset();
 
     if (options.fetchPolicy === 'no-cache') {
-      if (result.path) {
-        throw new Error("TODO");
-      }
-
       this.updateLastDiff(
         { result: result.data, complete: true },
         this.getDiffOptions(options.variables),
