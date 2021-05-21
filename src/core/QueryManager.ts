@@ -201,91 +201,86 @@ export class QueryManager<TStore> {
     }
 
     this.broadcastQueries();
-
-    const self = this;
-
-    return new Promise((resolve, reject) => {
-      return asyncMap(
-        self.getObservableFromLink(
-          mutation,
-          {
-            ...context,
-            optimisticResponse,
-          },
-          variables,
-          false,
-        ),
-
-        (result: FetchResult<TData>) => {
-          if (graphQLResultHasError(result) && errorPolicy === 'none') {
-            throw new ApolloError({
-              graphQLErrors: result.errors,
-            });
-          }
-
-          if (mutationStoreValue) {
-            mutationStoreValue.loading = false;
-            mutationStoreValue.error = null;
-          }
-
-          const storeResult: typeof result = { ...result };
-
-          if (typeof refetchQueries === "function") {
-            refetchQueries = refetchQueries(storeResult);
-          }
-
-          if (errorPolicy === 'ignore' &&
-              graphQLResultHasError(storeResult)) {
-            delete storeResult.errors;
-          }
-
-          if (fetchPolicy === 'no-cache') {
-            const results: any[] = [];
-
-            this.refetchQueries({
-              include: refetchQueries,
-              onQueryUpdated,
-            }).forEach(result => results.push(result));
-
-            return Promise.all(
-              awaitRefetchQueries ? results : [],
-            ).then(() => storeResult);
-          }
-
-          const markPromise = self.markMutationResult<
-            TData,
-            TVariables,
-            TContext,
-            TCache
-          >({
-            mutationId,
-            result,
-            document: mutation,
-            variables,
-            errorPolicy,
-            context,
-            update: updateWithProxyFn,
-            updateQueries,
-            refetchQueries,
-            removeOptimistic: optimisticResponse ? mutationId : void 0,
-            onQueryUpdated,
+    const observable = asyncMap(
+      this.getObservableFromLink(
+        mutation,
+        {...context, optimisticResponse},
+        variables,
+        false,
+      ),
+      (result: FetchResult<TData>) => {
+        if (graphQLResultHasError(result) && errorPolicy === 'none') {
+          throw new ApolloError({
+            graphQLErrors: result.errors,
           });
+        }
 
-          if (awaitRefetchQueries || onQueryUpdated) {
-            // Returning the result of markMutationResult here makes the
-            // mutation await the Promise that markMutationResult returns,
-            // since we are returning markPromise from the map function
-            // we passed to asyncMap above.
-            return markPromise.then(() => storeResult);
+        if (mutationStoreValue) {
+          mutationStoreValue.loading = false;
+          mutationStoreValue.error = null;
+        }
+
+        const storeResult: typeof result = { ...result };
+
+        if (typeof refetchQueries === "function") {
+          refetchQueries = refetchQueries(storeResult);
+        }
+
+        if (errorPolicy === 'ignore' &&
+            graphQLResultHasError(storeResult)) {
+          delete storeResult.errors;
+        }
+
+        if (fetchPolicy === 'no-cache') {
+          const results: any[] = [];
+
+          this.refetchQueries({
+            include: refetchQueries,
+            onQueryUpdated,
+          }).forEach(result => results.push(result));
+
+          if (awaitRefetchQueries) {
+            return Promise.all(results).then(() => storeResult);
           }
 
           return storeResult;
-        },
+        }
 
-      ).subscribe({
-        next(storeResult) {
-          self.broadcastQueries();
+        const markPromise = this.markMutationResult<
+          TData,
+          TVariables,
+          TContext,
+          TCache
+        >({
+          mutationId,
+          result,
+          document: mutation,
+          variables,
+          errorPolicy,
+          context,
+          update: updateWithProxyFn,
+          updateQueries,
+          refetchQueries,
+          removeOptimistic: optimisticResponse ? mutationId : void 0,
+          onQueryUpdated,
+        });
 
+        if (awaitRefetchQueries || onQueryUpdated) {
+          // Returning the result of markMutationResult here makes the
+          // mutation await the Promise that markMutationResult returns,
+          // since we are returning markPromise from the map function
+          // we passed to asyncMap above.
+          return markPromise.then(() => storeResult);
+        }
+
+        return storeResult;
+      },
+    );
+
+    return new Promise((resolve, reject) => {
+      observable.subscribe(
+        (storeResult) => {
+          this.broadcastQueries();
           // At the moment, a mutation can have only one result, so we can
           // immediately resolve upon receiving the first result. In the future,
           // mutations containing @defer or @stream directives might receive
@@ -295,17 +290,17 @@ export class QueryManager<TStore> {
           resolve(storeResult);
         },
 
-        error(err: Error) {
+        (err: Error) => {
           if (mutationStoreValue) {
             mutationStoreValue.loading = false;
             mutationStoreValue.error = err;
           }
 
           if (optimisticResponse) {
-            self.cache.removeOptimistic(mutationId);
+            this.cache.removeOptimistic(mutationId);
           }
 
-          self.broadcastQueries();
+          this.broadcastQueries();
 
           reject(
             err instanceof ApolloError ? err : new ApolloError({
@@ -313,7 +308,7 @@ export class QueryManager<TStore> {
             }),
           );
         },
-      });
+      );
     });
   }
 
