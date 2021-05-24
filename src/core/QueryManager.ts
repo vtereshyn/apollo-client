@@ -1187,8 +1187,7 @@ export class QueryManager<TStore> {
           // fallback function defined above.
           if (onQueryUpdated) {
             if (!diff) {
-              queryInfo.reset(); // Force queryInfo.getDiff() to read from cache.
-              diff = queryInfo.getDiff();
+              diff = queryInfo.getDiff(queryInfo.variables, true);
             }
             result = onQueryUpdated(oq, diff, lastDiff);
           }
