@@ -111,6 +111,10 @@ export class ObservableQuery<
           // are fired in the meantime, observers that should have been removed
           // from the QueryManager will continue to fire, causing an unnecessary
           // performance hit.
+          if (this.observers.has(observer)) {
+            throw new Error('THIS NEVER HAPPENS');
+          }
+
           this.observers.delete(observer);
           if (!this.observers.size) {
             this.queryManager.removeQuery(this.queryId);

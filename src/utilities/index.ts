@@ -88,5 +88,6 @@ export * from './common/errorHandling';
 export * from './common/canUse';
 export * from './common/compact';
 export * from './common/makeUniqueId';
+export * from './common/setIn';
 
 export * from './types/IsStrictlyAny';

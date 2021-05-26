@@ -304,7 +304,7 @@ export class QueryData<TData, TVariables> extends OperationData<
           this.previous.error = error;
           onNewData();
         }
-      }
+      },
     });
   }
 

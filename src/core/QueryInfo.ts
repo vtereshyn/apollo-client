@@ -10,7 +10,9 @@ import {
   ObservableSubscription,
   isNonEmptyArray,
   graphQLResultHasError,
+//  cloneDeep,
   canUseWeakMap,
+  setIn,
 } from '../utilities';
 import {
   NetworkStatus,
@@ -172,10 +174,9 @@ export class QueryInfo {
     diff: Cache.DiffResult<any> | null,
     options?: Cache.DiffOptions,
   ) {
-    this.lastDiff = diff ? {
-      diff,
-      options: options || this.getDiffOptions(),
-    } : void 0;
+    this.lastDiff = diff
+      ? { diff, options: options || this.getDiffOptions() }
+      : void 0;
   }
 
   private getDiffOptions(variables = this.variables): Cache.DiffOptions {
@@ -346,6 +347,24 @@ export class QueryInfo {
     this.reset();
 
     if (options.fetchPolicy === 'no-cache') {
+      if (result.path) {
+        let diff = this.lastDiff;
+        if (!diff) {
+          throw new Error('SOMETHING PATH PASSED WITHOUT A THINGY TODO TKTKTK');
+        }
+
+        //diff = cloneDeep(diff);
+        setIn(
+          diff.diff.result,
+          result.path.slice(),
+          (value: any) => ({...value, ...result.data}),
+        );
+        this.setDiff(diff.diff);
+        result.data = diff.diff.result;
+        this.dirty = true;
+        this.notify();
+      }
+
       this.updateLastDiff(
         { result: result.data, complete: true },
         this.getDiffOptions(options.variables),
